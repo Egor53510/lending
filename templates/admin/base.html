@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Админ-панель | Suno AI{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .glass-morphism {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .lead-row:hover {
+            background: rgba(255, 255, 255, 0.05);
+            transform: translateX(5px);
+            transition: all 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    {% if session.admin_logged_in %}
+    <nav class="glass-morphism shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <i class="fas fa-music text-white text-2xl mr-3"></i>
+                    <h1 class="text-white text-xl font-bold">Suno AI Админ-панель</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <a href="/admin" class="text-white hover:text-gray-200 transition">
+                        <i class="fas fa-tachometer-alt mr-2"></i>панель
+                    </a>
+                    <a href="/admin?logout=1" class="text-white hover:text-red-200 transition">
+                        <i class="fas fa-sign-out-alt mr-2"></i>Выход
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+    {% endif %}
+
+    <main class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="mb-4 p-4 rounded-lg glass-morphism text-white
+                        {% if category == 'error' %}border-red-400{% elif category == 'success' %}border-green-400{% else %}border-blue-400{% endif %}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

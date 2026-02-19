@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Админ-панель | Suno AI</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .glass-morphism {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .lead-row:hover {
+            background: rgba(255, 255, 255, 0.05);
+            transform: translateX(5px);
+            transition: all 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <div id="app" x-data="adminApp()">
+        <!-- Навигация -->
+        <nav class="glass-morphism shadow-lg" x-show="isLoggedIn">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between h-16">
+                    <div class="flex items-center">
+                        <i class="fas fa-music text-white text-2xl mr-3"></i>
+                        <h1 class="text-white text-xl font-bold">Suno AI Админ-панель</h1>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <button @click="logout()" class="text-white hover:text-red-200 transition">
+                            <i class="fas fa-sign-out-alt mr-2"></i>Выход
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <main class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+            <!-- Уведомления -->
+            <div x-show="notification.show" 
+                 class="mb-4 p-4 rounded-lg glass-morphism text-white"
+                 :class="{
+                     'border-red-400': notification.type === 'error',
+                     'border-green-400': notification.type === 'success',
+                     'border-blue-400': notification.type === 'info'
+                 }">
+                <span x-text="notification.message"></span>
+            </div>
+
+            <!-- Форма входа -->
+            <div x-show="!isLoggedIn" class="min-h-screen flex items-center justify-center">
+                <div class="glass-morphism rounded-2xl p-8 w-full max-w-md">
+                    <div class="text-center mb-8">
+                        <i class="fas fa-music text-white text-4xl mb-4"></i>
+                        <h2 class="text-white text-2xl font-bold">Админ-панель</h2>
+                        <p class="text-gray-200 mt-2">Suno AI Music</p>
+                    </div>
+
+                    <form @submit.prevent="login()" class="space-y-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-200 mb-2">
+                                <i class="fas fa-lock mr-2"></i>Пароль администратора
+                            </label>
+                            <input 
+                                type="password" 
+                                x-model="password"
+                                required
+                                class="w-full px-4 py-3 rounded-lg bg-white bg-opacity-20 border border-white border-opacity-30 text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                                placeholder="Введите пароль"
+                            >
+                        </div>
+
+                        <button 
+                            type="submit" 
+                            class="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white py-3 rounded-lg font-semibold hover:from-blue-600 hover:to-purple-700 transition duration-300 transform hover:scale-105"
+                            :disabled="loading"
+                        >
+                            <i class="fas fa-sign-in-alt mr-2"></i>
+                            <span x-show="!loading">Войти</span>
+                            <span x-show="loading">Загрузка...</span>
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Дашборд -->
+            <div x-show="isLoggedIn">
+                <!-- Статистика -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div class="glass-morphism rounded-xl p-6 text-center">
+                        <i class="fas fa-users text-white text-3xl mb-3"></i>
+                        <h3 class="text-white text-lg font-semibold">Всего заявок</h3>
+                        <p class="text-3xl font-bold text-blue-300" x-text="stats.totalLeads">0</p>
+                    </div>
+                    
+                    <div class="glass-morphism rounded-xl p-6 text-center">
+                        <i class="fas fa-calendar-day text-white text-3xl mb-3"></i>
+                        <h3 class="text-white text-lg font-semibold">Заявок сегодня</h3>
+                        <p class="text-3xl font-bold text-green-300" x-text="stats.todayLeads">0</p>
+                    </div>
+                    
+                    <div class="glass-morphism rounded-xl p-6 text-center">
+                        <i class="fas fa-chart-line text-white text-3xl mb-3"></i>
+                        <h3 class="text-white text-lg font-semibold">Конверсия</h3>
+                        <p class="text-3xl font-bold text-purple-300" x-text="stats.conversion">0%</p>
+                    </div>
+                </div>
+
+                <!-- Таблица заявок -->
+                <div class="glass-morphism rounded-xl overflow-hidden">
+                    <div class="p-6 border-b border-white border-opacity-20">
+                        <div class="flex justify-between items-center">
+                            <h2 class="text-white text-xl font-bold">
+                                <i class="fas fa-list mr-3"></i>Последние заявки
+                            </h2>
+                            <input 
+                                type="text" 
+                                x-model="searchQuery"
+                                placeholder="Поиск по имени, email или стилю..."
+                                class="px-4 py-2 rounded-lg bg-white bg-opacity-20 border border-white border-opacity-30 text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                            >
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead class="bg-white bg-opacity-10">
+                                <tr>
+                                    <th class="px-6 py-4 text-left text-xs font-medium text-gray-200 uppercase tracking-wider">ID</th>
+                                    <th class="px-6 py-4 text-left text-xs font-medium text-gray-200 uppercase tracking-wider">Имя</th>
+                                    <th class="px-6 py-4 text-left text-xs font-medium text-gray-200 uppercase tracking-wider">Email</th>
+                                    <th class="px-6 py-4 text-left text-xs font-medium text-gray-200 uppercase tracking-wider">Телефон</th>
+                                    <th class="px-6 py-4 text-left text-xs font-medium text-gray-200 uppercase tracking-wider">Стиль</th>
+                                    <th class="px-6 py-4 text-left text-xs font-medium text-gray-200 uppercase tracking-wider">Дата</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-white divide-opacity-10">
+                                <template x-for="lead in filteredLeads" :key="lead.id">
+                                    <tr class="lead-row cursor-pointer" @click="showLeadDetails(lead)">
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200">
+                                            <span class="text-xs bg-blue-500 bg-opacity-30 px-2 py-1 rounded" x-text="'#' + lead.id"></span>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-white font-medium">
+                                            <i class="fas fa-user mr-2 text-gray-400"></i><span x-text="lead.name"></span>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200">
+                                            <i class="fas fa-envelope mr-2 text-gray-400"></i><span x-text="lead.email"></span>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200">
+                                            <i class="fas fa-phone mr-2 text-gray-400"></i><span x-text="lead.phone"></span>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                            <span class="px-2 py-1 rounded-full text-xs font-medium bg-purple-500 bg-opacity-30 text-white" x-text="lead.style.toUpperCase()"></span>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200">
+                                            <i class="fas fa-clock mr-2 text-gray-400"></i><span x-text="lead.created_at"></span>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                        
+                        <div x-show="leads.length === 0" class="text-center py-12">
+                            <i class="fas fa-inbox text-white text-4xl mb-4"></i>
+                            <p class="text-gray-200 text-lg">Заявки пока не поступали</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Модальное окно деталей заявки -->
+        <div x-show="selectedLead" 
+             class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+             @click.self="selectedLead = null">
+            <div class="glass-morphism rounded-xl p-6 max-w-2xl w-full mx-4 max-h-screen overflow-y-auto">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-white text-xl font-bold">
+                        <i class="fas fa-file-alt mr-3"></i>Заявка #<span x-text="selectedLead?.id"></span>
+                    </h3>
+                    <button @click="selectedLead = null" class="text-white hover:text-gray-200">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+
+                <div x-show="selectedLead" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Основная информация -->
+                    <div class="space-y-4">
+                        <h4 class="text-white text-lg font-semibold mb-4">
+                            <i class="fas fa-user mr-2"></i>Основная информация
+                        </h4>
+                        
+                        <div class="bg-white bg-opacity-5 rounded-lg p-4">
+                            <div class="mb-3">
+                                <label class="text-gray-300 text-sm font-medium">Имя</label>
+                                <p class="text-white font-medium" x-text="selectedLead?.name"></p>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="text-gray-300 text-sm font-medium">Email</label>
+                                <p class="text-white" x-text="selectedLead?.email"></p>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="text-gray-300 text-sm font-medium">Телефон</label>
+                                <p class="text-white" x-text="selectedLead?.phone"></p>
+                            </div>
+                            
+                            <div>
+                                <label class="text-gray-300 text-sm font-medium">Дата заявки</label>
+                                <p class="text-white" x-text="selectedLead?.created_at"></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Детали заказа -->
+                    <div class="space-y-4">
+                        <h4 class="text-white text-lg font-semibold mb-4">
+                            <i class="fas fa-music mr-2"></i>Детали заказа
+                        </h4>
+                        
+                        <div class="bg-white bg-opacity-5 rounded-lg p-4">
+                            <div class="mb-3">
+                                <label class="text-gray-300 text-sm font-medium">Музыкальный стиль</label>
+                                <p class="text-white font-medium">
+                                    <span class="px-2 py-1 rounded text-xs bg-purple-500 bg-opacity-30 text-white" x-text="selectedLead?.style?.toUpperCase()"></span>
+                                </p>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="text-gray-300 text-sm font-medium">Нужен текст в песне?</label>
+                                <p class="text-white">
+                                    <span x-show="selectedLead?.has_text" class="text-green-300">
+                                        <i class="fas fa-check-circle mr-2"></i>Да
+                                    </span>
+                                    <span x-show="!selectedLead?.has_text" class="text-red-300">
+                                        <i class="fas fa-times-circle mr-2"></i>Нет
+                                    </span>
+                                </p>
+                            </div>
+                            
+                            <div x-show="selectedLead?.has_text && selectedLead?.text_description" class="mb-3">
+                                <label class="text-gray-300 text-sm font-medium">Описание текста</label>
+                                <p class="text-white bg-black bg-opacity-30 rounded p-3" x-text="selectedLead?.text_description"></p>
+                            </div>
+                            
+                            <div x-show="selectedLead?.message">
+                                <label class="text-gray-300 text-sm font-medium">Комментарий</label>
+                                <p class="text-white bg-black bg-opacity-30 rounded p-3" x-text="selectedLead?.message"></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Кнопки действий -->
+                <div class="mt-8 flex flex-wrap gap-4">
+                    <button @click="copyToClipboard(selectedLead?.email)" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition">
+                        <i class="fas fa-envelope mr-2"></i>Копировать email
+                    </button>
+                    
+                    <button @click="copyToClipboard(selectedLead?.phone)" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition">
+                        <i class="fas fa-phone mr-2"></i>Копировать телефон
+                    </button>
+                    
+                    <a :href="'mailto:' + selectedLead?.email + '?subject=Suno AI - Ваша заявка&body=Здравствуйте, ' + selectedLead?.name + '!'" 
+                       class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg transition">
+                        <i class="fas fa-reply mr-2"></i>Ответить на email
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script>
+        function adminApp() {
+            return {
+                isLoggedIn: false,
+                loading: false,
+                password: '',
+                leads: [],
+                searchQuery: '',
+                selectedLead: null,
+                notification: {
+                    show: false,
+                    message: '',
+                    type: 'info'
+                },
+                stats: {
+                    totalLeads: 0,
+                    todayLeads: 0,
+                    conversion: '0%'
+                },
+
+                get filteredLeads() {
+                    if (!this.searchQuery) return this.leads;
+                    
+                    const query = this.searchQuery.toLowerCase();
+                    return this.leads.filter(lead => 
+                        lead.name.toLowerCase().includes(query) ||
+                        lead.email.toLowerCase().includes(query) ||
+                        lead.style.toLowerCase().includes(query)
+                    );
+                },
+
+                async login() {
+                    this.loading = true;
+                    try {
+                        const response = await fetch('/api/admin/login', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ password: this.password })
+                        });
+
+                        if (response.ok) {
+                            this.isLoggedIn = true;
+                            this.showNotification('Вы успешно вошли в систему!', 'success');
+                            await this.loadLeads();
+                        } else {
+                            this.showNotification('Неверный пароль!', 'error');
+                        }
+                    } catch (error) {
+                        this.showNotification('Ошибка соединения!', 'error');
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                logout() {
+                    this.isLoggedIn = false;
+                    this.password = '';
+                    this.leads = [];
+                    this.showNotification('Вы вышли из системы!', 'info');
+                },
+
+                async loadLeads() {
+                    try {
+                        const response = await fetch('/api/leads?limit=1000');
+                        if (response.ok) {
+                            this.leads = await response.json();
+                            this.updateStats();
+                        }
+                    } catch (error) {
+                        this.showNotification('Ошибка загрузки данных!', 'error');
+                    }
+                },
+
+                updateStats() {
+                    this.stats.totalLeads = this.leads.length;
+                    
+                    const today = new Date().toDateString();
+                    this.stats.todayLeads = this.leads.filter(lead => 
+                        new Date(lead.created_at).toDateString() === today
+                    ).length;
+                    
+                    this.stats.conversion = this.stats.totalLeads > 0 
+                        ? ((this.stats.todayLeads / this.stats.totalLeads) * 100).toFixed(1) + '%'
+                        : '0%';
+                },
+
+                showLeadDetails(lead) {
+                    this.selectedLead = lead;
+                },
+
+                copyToClipboard(text) {
+                    navigator.clipboard.writeText(text).then(() => {
+                        this.showNotification('Скопировано!', 'success');
+                    });
+                },
+
+                showNotification(message, type = 'info') {
+                    this.notification = { show: true, message, type };
+                    setTimeout(() => {
+                        this.notification.show = false;
+                    }, 3000);
+                }
+            }
+        }
+    </script>
+</body>
+</html>

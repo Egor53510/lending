@@ -290,8 +290,8 @@ async def create_lead(lead: LeadCreate, background_tasks: BackgroundTasks):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/leads", response_model=List[LeadResponse])
-async def list_leads(skip: int = 0, limit: int = 100):
-    """List all leads (for admin panel)"""
+async def list_leads(skip: int = 0, limit: int = 100, admin: bool = False):
+    """List all leads with optional admin access"""
     db = next(get_db())
     leads = db.query(Lead).order_by(Lead.created_at.desc()).offset(skip).limit(limit).all()
     return leads
