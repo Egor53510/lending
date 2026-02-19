@@ -222,13 +222,17 @@ async def process_track_generation(track_id: int, request: TrackGenerateRequest)
 async def api_root():
     return {"message": "Suno AI Music Landing API", "status": "active"}
 
+# Get absolute path to files
+import os
+BASE_DIR = "/app"  # Docker container working directory
+
 @app.get("/")
 async def root():
-    return FileResponse("static/index.html")
+    return FileResponse(os.path.join(BASE_DIR, "static/index.html"))
 
 @app.get("/admin")
 async def admin_page():
-    return FileResponse("static/admin.html")
+    return FileResponse(os.path.join(BASE_DIR, "static/admin.html"))
 
 # Admin Authentication
 @app.post("/api/admin/login")
@@ -375,7 +379,7 @@ import os.path
 @app.get("/static/{file_path:path}")
 async def serve_static(file_path: str):
     """Serve static files with no caching"""
-    file_location = os.path.join("static", file_path)
+    file_location = os.path.join(BASE_DIR, "static", file_path)
     
     if not os.path.exists(file_location):
         raise HTTPException(status_code=404, detail="File not found")
@@ -414,7 +418,7 @@ async def serve_landing(full_path: str):
         raise HTTPException(status_code=404, detail="Not found")
     
     # Serve index.html with no caching
-    with open("static/index.html", "r", encoding="utf-8") as file:
+    with open(os.path.join(BASE_DIR, "static/index.html"), "r", encoding="utf-8") as file:
         content = file.read()
     
     return Response(
